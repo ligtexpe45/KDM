@@ -408,7 +408,7 @@ def compute_confusion_matrix(y_gt, y_pr, classes=[0, 1, 2, 3, 4]):
         y_gtk = np.squeeze(y_gt[k, ...]).flatten()
 
         # Sum up the confusion matrix
-        cm = cm + confusion_matrix(y_gtk, y_prk, classes)
+        cm = cm + confusion_matrix(y_gtk, y_prk, labels=classes)
 
     return cm
 
