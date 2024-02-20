@@ -337,6 +337,7 @@ def training(train_cfg, optimizer, model, train_loader, val_loader, loss_fn,
               f"Val performance: {val_performance:.4f} - Best: {best_performance:.4f}")
         print('=> saving checkpoint to {}'.format(
             train_cfg['save_dir'] + 'checkpoint.pth.tar'))
+        os.makedirs(train_cfg['save_dir'], exist_ok=True)
         torch.save({
             'epoch': epoch + 1,
             'best_mIoU': best_performance,
