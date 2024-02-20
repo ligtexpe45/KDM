@@ -36,7 +36,7 @@ def hsi_read_header(file_name, verbose=False):
         - wave_lengths: list of wave lengths used to acquired the data
     """
     # Open a file for reading
-    f = open(file_name, 'r+')
+    f = open(file_name, 'r')
 
     # Read all the lines in the header file
     text = f.readlines()
