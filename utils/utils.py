@@ -207,7 +207,7 @@ def visualize_att(dataloader, model, num_results = 3, sv_dir = '',
             for clf_id in range(num_results-1):
                 att = atts[clf_id]
                 #print(torch.sum(att))
-                att = F.upsample(att,size=(h, w)).cpu().data.numpy()
+                att = F.interpolate(att,size=(h, w)).cpu().data.numpy()
                 for id, label in labels.items():
                     new_dir = os.path.join(sv_dir, 'class_{}'.format(label))
                     att_ = att[:,id]
@@ -463,7 +463,7 @@ def cohen_kappa_score(confusion):
     sum0 = np.sum(confusion, axis=0)
     sum1 = np.sum(confusion, axis=1)
     expected = np.outer(sum0, sum1) / np.sum(sum0)
-    w_mat = np.ones([n_classes, n_classes], dtype=np.int)
+    w_mat = np.ones([n_classes, n_classes], dtype=int)
     w_mat.flat[:: n_classes + 1] = 0
 
     k = np.sum(w_mat * confusion) / np.sum(w_mat * expected)

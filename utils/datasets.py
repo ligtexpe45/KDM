@@ -42,7 +42,7 @@ class HSIDataset(Dataset):
             txt_files = [txt_files]
         self.training_imgs = []
         for file in txt_files:
-            imgs = list(loadtxt(file, dtype=np.str)[:n_cutoff_imgs])
+            imgs = list(loadtxt(file, dtype=str)[:n_cutoff_imgs])
 
             if len(self.training_imgs) == 0:
                 self.training_imgs = imgs
@@ -170,7 +170,7 @@ if __name__ == "__main__":
     training_files = ['data/P2.txt', 'data/P3.txt', 'data/P4.txt', 'data/P5.txt']
     t = {}
     for im_file in training_files:
-        img_files = list(loadtxt(im_file, dtype=np.str))
+        img_files = list(loadtxt(im_file, dtype=str))
         for f in img_files:
             bmp_file = pc_dir + f
             bmp = Image.open(bmp_file)
@@ -225,5 +225,4 @@ if __name__ == "__main__":
     plt.title('Ground-truth 4th channel')
     fig.colorbar(im, ax=ax)
     plt.show()
-
 

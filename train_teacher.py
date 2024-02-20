@@ -302,7 +302,7 @@ def training(train_cfg, optimizer, model, train_loader, val_loader, loss_fn,
     :return:
     """
     # Number of iterations
-    epoch_iters = np.int(train_loader.dataset.__len__() /
+    epoch_iters = int(train_loader.dataset.__len__() /
                          cfg['train_params']['batch_size'] / len(cfg['gpu_id']))
     max_iters = epoch_iters * cfg['train_params']['n_epochs']
 

@@ -204,7 +204,7 @@ class SpatialGather_Module(nn.Module):
             return ocr_context
         else:
             if feats.size() != probs.size():
-                probs = F.upsample(probs,size=(feats.size(-2),feats.size(-1)))
+                probs = F.interpolate(probs,size=(feats.size(-2),feats.size(-1)))
             batch_size, c, h, w = probs.size(0), probs.size(1), probs.size(2), probs.size(3)
             probs = probs.view(batch_size, c, -1)
             feats = feats.view(batch_size, feats.size(1), -1)

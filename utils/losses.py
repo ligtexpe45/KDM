@@ -117,7 +117,7 @@ class CrossEntropy(nn.Module):
         ph, pw = score.size(2), score.size(3)
         h, w = target.size(1), target.size(2)
         if ph != h or pw != w:
-            score = func.upsample(
+            score = func.interpolate(
                 input=score, size=(h, w), mode='bilinear')
 
         loss = self.criterion(score, target)
@@ -170,7 +170,7 @@ class OhemCrossEntropy(nn.Module):
         ph, pw = score.size(2), score.size(3)
         h, w = target.size(1), target.size(2)
         if ph != h or pw != w:
-            score = func.upsample(input=score, size=(h, w), mode='bilinear')
+            score = func.interpolate(input=score, size=(h, w), mode='bilinear')
         pred = func.softmax(score, dim=1)
         pixel_losses = self.criterion(score, target).contiguous().view(-1)
         mask = target.contiguous().view(-1) != self.ignore_label
@@ -205,7 +205,7 @@ class KDFeat(nn.Module):
         """
         # G^2_sum
         if f_S.size() != f_T.size():
-            f_T = func.upsample(f_T, size=(f_S.shape[2],f_S.shape[3]), mode='bilinear', align_corners=True)
+            f_T = func.interpolate(f_T, size=(f_S.shape[2],f_S.shape[3]), mode='bilinear', align_corners=True)
         f_S = torch.sum(f_S * f_S, dim=1, keepdim=True)
         f_S = SpatialSoftmax(f_S)
         f_T = torch.sum(f_T * f_T, dim=1, keepdim=True)
