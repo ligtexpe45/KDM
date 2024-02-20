@@ -327,7 +327,7 @@ def get_experiment_dataloaders(cfg):
     """
     # Create an instance of the HSIDataset
     hsi_train_dataset = HSIDataset(cfg['dataset_dir'], cfg['train_txtfiles'],
-                                   cfg['classes'], cfg['n_cutoff_imgs'])
+                                   cfg['classes'], cfg['n_cutoff_imgs'], cfg['dataset'])
 
     # Set params for pliting the dataset in to train and val subset with a ratio 0.9 : 0.1
     train_rate = 0.9
@@ -350,7 +350,7 @@ def get_experiment_dataloaders(cfg):
                                                  pin_memory=True, num_workers=cfg['num_workers'])
     # Get the testloader
     hsi_test_dataset = HSIDataset(cfg['dataset_dir'], cfg['test_txtfiles'],
-                                  cfg['classes'], cfg['n_cutoff_imgs'])
+                                  cfg['classes'], cfg['n_cutoff_imgs'], cfg['dataset'])
     test_dataloader = torch.utils.data.DataLoader(hsi_test_dataset,
                                                   batch_size=1,  # restrict to 1 as we have a function to display one image
                                                   pin_memory=True, num_workers=cfg['num_workers'])

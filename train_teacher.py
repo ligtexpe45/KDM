@@ -545,6 +545,7 @@ if __name__ == '__main__':
     else:
         save_dir = f"experiments/{cfg['train_params']['save_dir']}"
 
+    cfg['train_params']['dataset'] = cfg['dataset']
     cfg['train_params']['save_dir'] = save_dir
     comet.set_name('%s-%depochs' % (cfg['name'], cfg['train_params']['n_epochs']))
     comet.log_asset(nn_config_path)

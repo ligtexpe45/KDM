@@ -10,6 +10,7 @@ from numpy import loadtxt
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from spectral import *
 
 # Third party imports
 import torch
@@ -20,7 +21,7 @@ from torch.utils.data import Dataset
 
 
 class HSIDataset(Dataset):
-    def __init__(self, root_dir, txt_files, classes=[0, 1, 2, 3, 4], n_cutoff_imgs=None):
+    def __init__(self, root_dir, txt_files, classes=[0, 1, 2, 3, 4], n_cutoff_imgs=None, dataset=None):
         """
         :param root_dir: root directory to the dataset folder, e.g ../02-Data/UOW-HSI/
         :param txt_files: text files contain filenames of BMP (ground-truth) files
@@ -33,6 +34,7 @@ class HSIDataset(Dataset):
         self.classes = classes
         self.txt_files = txt_files
         self.root_dir = root_dir
+        self.dataset = dataset
 
         if (not isinstance(n_cutoff_imgs, int)) or (n_cutoff_imgs <= 0):
             n_cutoff_imgs = None
@@ -66,19 +68,34 @@ class HSIDataset(Dataset):
         """
         from utils.utils import hsi_read_data
         # Get the ground truth and raw files
-        bmp_file = self.root_dir + self.training_imgs[index]
-        raw_file = self.root_dir + self.training_imgs[index][:-4] + '.raw'
+        if self.dataset == 'brain':
+            bmp_file = self.root_dir + self.training_imgs[index] + "/" + self.training_imgs[index] + '/gtMap.hdr'
+            raw_file = self.root_dir + self.training_imgs[index] + "/" + self.training_imgs[index] + '/raw.hdr'
+        else:
+            bmp_file = self.root_dir + self.training_imgs[index]
+            raw_file = self.root_dir + self.training_imgs[index][:-4] + '.raw'
 
         #import os
         #print(os.listdir('D:/Users/vmhp806/data/HSI/UOW-HSI'))
         # Read the hsi image
-        x, _ = hsi_read_data(raw_file)              # of size (H, W, n_bands)
+        if self.dataset == 'brain':
+            x = envi.open(raw_file, image=raw_file[:-4])[:, :, :]
+        else:
+            x, _ = hsi_read_data(raw_file)  # of size (H, W, n_bands)
         x = np.moveaxis(x, [0, 1, 2], [1, 2, 0])    # of size (n_bands, H, W)
         x = np.float32(x)                           # convert the input data into float32 datatype
+        # x = x[:30,:50,:50]
 
         # Read the ground-truth image
-        bmp = Image.open(bmp_file)
-        y_seg = np.array(bmp.getdata()).reshape(bmp.size[1], bmp.size[0])   # of size (H, W)
+        if self.dataset == 'brain':
+            mask = envi.open(bmp_file, image=bmp_file[:-4])[:, :, 0]
+            y_seg = np.squeeze(mask)
+            y_seg = y_seg.astype(np.float32)
+        else:
+            bmp = Image.open(bmp_file)
+            y_seg = np.array(bmp.getdata()).reshape(bmp.size[1], bmp.size[0])   # of size (H, W)
+
+        # y_seg = y_seg[:50,:50]
         #y_seg[y_seg == 4] = 0
         y_oht = convert_seg2onehot(y_seg, self.classes)                     # of size (n_classes, H, W)
 

@@ -4,6 +4,7 @@ tags: ['standard', 'training']  # for comet-ml
 gpu_id: ['1']                     # must set as a string, empty means using CPU
 seed: 50
 resume: True
+dataset: 'brain'  # dataset name
 train_params:
   #dataset_dir: '/data/semantic_segmentation/data/UOW-HSI/'
   #dataset_dir: '/home/hieu/research/data/UOW-HSI/'
