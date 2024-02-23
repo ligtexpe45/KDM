@@ -12,6 +12,8 @@ Download data at documents.uow.edu.au/ phung/Bio-HSI.html.
 Edit configure files in configs/teacher/hsi_sgrnet_res101.yml and point to your data folder.
 `python train_teacher.py --config configs/teacher/hsi_sgrnet_res101.yml`
 
+`python train_teacher.py --config configs/teacher/pathology.yml`
+
 ### 4. Train student via KD from Multi-head Teacher (KDM):
 Edit pretrained_file in configs/hsi_res101_kdm.yml with the path to the teacher checkpoint file stored in `experiments` folder.
 

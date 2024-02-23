@@ -4,6 +4,7 @@ Created on 18/08/2020 7:41 pm
 
 @author: Soan Duong, UOW
 """
+import cv2
 # Standard library imports
 import numpy as np
 from numpy import loadtxt
@@ -71,6 +72,9 @@ class HSIDataset(Dataset):
         if self.dataset == 'brain':
             bmp_file = self.root_dir + self.training_imgs[index] + "/" + self.training_imgs[index] + '/gtMap.hdr'
             raw_file = self.root_dir + self.training_imgs[index] + "/" + self.training_imgs[index] + '/raw.hdr'
+        elif self.dataset == 'pathology':
+            bmp_file = self.root_dir + 'Mask/' + self.training_imgs[index] + '.png'
+            raw_file = self.root_dir + 'MHSI/' + 'MHSI/' + self.training_imgs[index] + '.hdr'
         else:
             bmp_file = self.root_dir + self.training_imgs[index]
             raw_file = self.root_dir + self.training_imgs[index][:-4] + '.raw'
@@ -80,6 +84,8 @@ class HSIDataset(Dataset):
         # Read the hsi image
         if self.dataset == 'brain':
             x = envi.open(raw_file, image=raw_file[:-4])[:, :, :]
+        elif self.dataset == 'pathology':
+            x = envi.open(raw_file, image=raw_file[:-4]+'.img')[:, :, :]
         else:
             x, _ = hsi_read_data(raw_file)  # of size (H, W, n_bands)
         x = np.moveaxis(x, [0, 1, 2], [1, 2, 0])    # of size (n_bands, H, W)
@@ -91,6 +97,11 @@ class HSIDataset(Dataset):
             mask = envi.open(bmp_file, image=bmp_file[:-4])[:, :, 0]
             y_seg = np.squeeze(mask)
             y_seg = y_seg.astype(np.float32)
+        elif self.dataset == 'pathology':
+            print(bmp_file)
+            bmp = (cv2.imread(bmp_file, 0) / 255).astype(np.uint8)
+            y_seg = bmp
+            # y_seg = np.array(bmp.getdata()).reshape(bmp.size[1], bmp.size[0]) / 255
         else:
             bmp = Image.open(bmp_file)
             y_seg = np.array(bmp.getdata()).reshape(bmp.size[1], bmp.size[0])   # of size (H, W)
@@ -182,9 +193,9 @@ def convert_prob2seg(y_prob, classes):
 
 
 if __name__ == "__main__":
-    pc_dir = '/media/hieu/DATA/UOW-HSI/'
+    pc_dir = '/mnt/Windows/cv_projects/archive/'
     # pc_dir = 'U:/02-Data/UOW-HSI/'
-    training_files = ['data/P2.txt', 'data/P3.txt', 'data/P4.txt', 'data/P5.txt']
+    training_files = ['../data-3125/P2.txt']
     t = {}
     for im_file in training_files:
         img_files = list(loadtxt(im_file, dtype=str))
