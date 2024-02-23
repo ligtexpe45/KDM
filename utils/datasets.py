@@ -98,7 +98,6 @@ class HSIDataset(Dataset):
             y_seg = np.squeeze(mask)
             y_seg = y_seg.astype(np.float32)
         elif self.dataset == 'pathology':
-            print(bmp_file)
             bmp = (cv2.imread(bmp_file, 0) / 255).astype(np.uint8)
             y_seg = bmp
             # y_seg = np.array(bmp.getdata()).reshape(bmp.size[1], bmp.size[0]) / 255
