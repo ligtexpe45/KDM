@@ -77,8 +77,8 @@ class HSIDataset(Dataset):
             bmp_file = self.root_dir + 'Mask/' + self.training_imgs[index] + '.png'
             raw_file = self.root_dir + 'MHSI/' + 'MHSI/' + self.training_imgs[index] + '.hdr'
         elif self.dataset == 'dental':
-            bmp_file = self.root_dir + self.training_imgs[index] + '.tif'
-            raw_file = self.root_dir + self.training_imgs[index] + '_masks.tif'
+            bmp_file = self.root_dir + self.training_imgs[index] + '_masks.tif'
+            raw_file = self.root_dir + self.training_imgs[index] + '.tif'
         else:
             bmp_file = self.root_dir + self.training_imgs[index]
             raw_file = self.root_dir + self.training_imgs[index][:-4] + '.raw'
