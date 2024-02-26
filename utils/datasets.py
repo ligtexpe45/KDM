@@ -12,6 +12,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from spectral import *
+from . import tiff
 
 # Third party imports
 import torch
@@ -75,6 +76,9 @@ class HSIDataset(Dataset):
         elif self.dataset == 'pathology':
             bmp_file = self.root_dir + 'Mask/' + self.training_imgs[index] + '.png'
             raw_file = self.root_dir + 'MHSI/' + 'MHSI/' + self.training_imgs[index] + '.hdr'
+        elif self.dataset == 'dental':
+            bmp_file = self.root_dir + self.training_imgs[index] + '.tiff'
+            raw_file = self.root_dir + self.training_imgs[index] + '_masks.tiff'
         else:
             bmp_file = self.root_dir + self.training_imgs[index]
             raw_file = self.root_dir + self.training_imgs[index][:-4] + '.raw'
@@ -86,6 +90,8 @@ class HSIDataset(Dataset):
             x = envi.open(raw_file, image=raw_file[:-4])[:, :, :]
         elif self.dataset == 'pathology':
             x = envi.open(raw_file, image=raw_file[:-4]+'.img')[:, :, :]
+        elif self.dataset == 'dental':
+            x, _, _, _ = tiff.read_stiff(raw_file)
         else:
             x, _ = hsi_read_data(raw_file)  # of size (H, W, n_bands)
         x = np.moveaxis(x, [0, 1, 2], [1, 2, 0])    # of size (n_bands, H, W)
@@ -101,6 +107,9 @@ class HSIDataset(Dataset):
             bmp = (cv2.imread(bmp_file, 0) / 255).astype(np.uint8)
             y_seg = bmp
             # y_seg = np.array(bmp.getdata()).reshape(bmp.size[1], bmp.size[0]) / 255
+        elif self.dataset == 'dental':
+            masks = tiff.read_mtiff(bmp_file)
+            y_seg = tiff.mtiff_to_2d_arr(masks)
         else:
             bmp = Image.open(bmp_file)
             y_seg = np.array(bmp.getdata()).reshape(bmp.size[1], bmp.size[0])   # of size (H, W)
