@@ -229,7 +229,7 @@ def train_epoch(optimizer, model, train_loader, loss_fn, metric, device, epoch, 
     return avg_loss, avg_performance
 
 
-def val_epoch(model, val_loader, loss_fn, metric, device, n_classes=5):
+def val_epoch(model, val_loader, loss_fn, metric, device, classes = [0, 1, 2, 3, 4]):
     """
     Validation an epoch of validation set
     :param model: network model
@@ -271,7 +271,7 @@ def val_epoch(model, val_loader, loss_fn, metric, device, n_classes=5):
 
             cm = cm + compute_confusion_matrix(y_gt=y_seg.detach().cpu().numpy(),
                                                 y_pr=o_results[-1].detach().cpu().numpy(),
-                                               classes=list(range(n_classes)))
+                                               classes=classes)
 
             # 6. Display losses
             result = "{}: {:.4}".format('Val loss', loss)
@@ -325,7 +325,7 @@ def training(train_cfg, optimizer, model, train_loader, val_loader, loss_fn,
         # Validate a epoch
         with comet.validate():
             val_loss, val_performance = val_epoch(model, val_loader, loss_fn,
-                                                  metric, device)
+                                                  metric, device, cfg['model_params']['classes'])
             comet.log_metric('loss', val_loss, epoch=epoch + 1)
             comet.log_metric('performance', val_performance, epoch=epoch + 1)
         #scheduler.step(epoch)
