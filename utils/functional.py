@@ -52,6 +52,7 @@ def iou(pr, gt, eps=1e-7, threshold=None, ignore_channels=None):
     """
 
     pr = _threshold(pr, threshold=threshold)
+    pr = torch.argmax(pr, dim=1)
     pr, gt = _take_channels(pr, gt, ignore_channels=ignore_channels)
     intersection = torch.sum(gt * pr)
     union = torch.sum(gt) + torch.sum(pr) - intersection + eps
