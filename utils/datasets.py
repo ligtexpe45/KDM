@@ -92,6 +92,10 @@ class HSIDataset(Dataset):
             x = envi.open(raw_file, image=raw_file[:-4]+'.img')[:, :, :]
         elif self.dataset == 'dental':
             x, _, _, _ = tiff.read_stiff(raw_file)
+            x = cv2.resize(x, (250, 250), interpolation=cv2.INTER_NEAREST)
+            chosen_channels = np.linspace(0, x.shape[2]-1, num=51, dtype=int)
+            new_x = [x[:, :, channel] for channel in chosen_channels]
+            x = np.stack(new_x, axis=2)
         else:
             x, _ = hsi_read_data(raw_file)  # of size (H, W, n_bands)
         x = np.moveaxis(x, [0, 1, 2], [1, 2, 0])    # of size (n_bands, H, W)
@@ -110,6 +114,7 @@ class HSIDataset(Dataset):
         elif self.dataset == 'dental':
             masks = tiff.read_mtiff(bmp_file)
             y_seg = tiff.mtiff_to_2d_arr(masks)
+            y_seg = cv2.resize(y_seg, (250, 250), interpolation=cv2.INTER_NEAREST)
         else:
             bmp = Image.open(bmp_file)
             y_seg = np.array(bmp.getdata()).reshape(bmp.size[1], bmp.size[0])   # of size (H, W)
