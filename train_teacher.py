@@ -173,8 +173,6 @@ def main(cfg, comet):
     test_running_time_with_wrapper(x, model, comet, m_params['n_heads'])
     comet.log_asset(cfg['train_params']['save_dir'] + '/best_model.pth')
 
-    testing(model, m_params['classes'], test_loader, metric, device, m_params['n_heads'], comet, cfg['train_params']['save_dir'])
-
 
 def train_epoch(optimizer, model, train_loader, loss_fn, metric, device, epoch, epoch_iters, max_iters):
     """
@@ -287,10 +285,10 @@ def val_epoch(model, val_loader, loss_fn, metric, device, classes = [0, 1, 2, 3,
         # Compute the average loss and performance
         avg_loss = running_loss / len(val_loader)
         #avg_performance = running_performance / len(val_loader)
-        pixel_acc, mean_acc, mean_IoU, IoU_array, _, _ = compute_eval_from_cm(cm)
+        pixel_acc, mean_acc, mean_IoU, IoU_array, dice, kappa = compute_eval_from_cm(cm)
 
         # Return the loss and performance (average-over-epoch values) of the evaluation set
-        return avg_loss, mean_IoU
+        return avg_loss, mean_IoU, pixel_acc, mean_acc, IoU_array, dice, kappa, cm
 
 
 def training(train_cfg, optimizer, model, train_loader, val_loader, loss_fn,
@@ -331,7 +329,7 @@ def training(train_cfg, optimizer, model, train_loader, val_loader, loss_fn,
 
         # Validate a epoch
         with comet.validate():
-            val_loss, val_performance = val_epoch(model, val_loader, loss_fn,
+            val_loss, val_performance, pixel_acc, mean_acc, _, dice, kappa, cm = val_epoch(model, val_loader, loss_fn,
                                                   metric, device, cfg['model_params']['classes'])
             comet.log_metric('loss', val_loss, epoch=epoch + 1)
             comet.log_metric('performance', val_performance, epoch=epoch + 1)
@@ -342,6 +340,9 @@ def training(train_cfg, optimizer, model, train_loader, val_loader, loss_fn,
 
         print(f"Val loss: {val_loss:.4f}, "
               f"Val performance: {val_performance:.4f} - Best: {best_performance:.4f}")
+        # print the rest of the metrics in one line
+        print(f"Pixel Acc: {pixel_acc:.4f}, Mean Acc: {mean_acc:.4f}, Mean IoU: {val_performance:.4f}")
+        print(f"Dice: {dice:.4f}, Kappa: {kappa:.4f}")
         print('=> saving checkpoint to {}'.format(
             train_cfg['save_dir'] + 'checkpoint.pth.tar'))
         os.makedirs(train_cfg['save_dir'], exist_ok=True)
@@ -352,9 +353,13 @@ def training(train_cfg, optimizer, model, train_loader, val_loader, loss_fn,
             'optimizer': optimizer.state_dict(),
         }, os.path.join(train_cfg['save_dir'], 'checkpoint.pth.tar'))
 
+        cm = pd.DataFrame(cm, index=cfg['model_params']['classes'], columns=cfg['model_params']['classes'])
+        cm.to_csv(f'{train_cfg["save_dir"]}/cm.csv')
+
+
         # Save best model only
         #if val_loss < best_model_indicator:
-        if val_performance > best_performance:
+        if val_performance >= best_performance:
             print(f'Model exceeds prev best score'
                   f'({val_performance:.4f} > {best_performance:.4f}). Saving it now.')
             #best_model_indicator = val_loss
@@ -362,6 +367,9 @@ def training(train_cfg, optimizer, model, train_loader, val_loader, loss_fn,
 
             # Write the model
             torch.save(model.state_dict(), train_cfg['save_dir'] + '/best_model.pth')
+
+            cm.to_csv(f'{train_cfg["save_dir"]}/best_cm.csv')
+            best_cm = cm
 
             not_improved_epochs = 0  # reset counter
         else:
@@ -371,6 +379,24 @@ def training(train_cfg, optimizer, model, train_loader, val_loader, loss_fn,
                 break
             else:
                 not_improved_epochs = not_improved_epochs + 1
+    # Display the best confusion matrix
+    # Create a heatmap and display numerical values inside the cells
+    plt.imshow(best_cm, cmap='viridis', interpolation='nearest')
+
+    if cfg['train_params']['add_cm_labels']!=0:
+        for i in range(best_cm.shape[0]):
+            for j in range(best_cm.shape[1]):
+                plt.text(j, i, str(best_cm[i, j]), ha='center', va='center', color='black')
+
+    # Display the colormap legend
+    plt.colorbar()
+
+    # Add labels and title
+    plt.xlabel('Predicted')
+    plt.ylabel('Actual')
+    plt.title('Confusion Matrix')
+
+    plt.show()
 
 
 def testing(model, classes, test_loader, metric, device, n_heads, comet, save_dir):

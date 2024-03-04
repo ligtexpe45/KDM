@@ -412,21 +412,49 @@ def compute_confusion_matrix(y_gt, y_pr, classes=[0, 1, 2, 3, 4]):
 
     return cm
 
-def compute_eval_from_cm(cm):
-    true = cm.sum(1)
-    pred = cm.sum(0)
-    tp = np.diag(cm)
-    recall = tp / np.maximum(1.0, true)
-    precision = tp / np.maximum(1.0, pred)
-    dice = (2*(precision * recall)/(precision + recall)).mean()
+def compute_eval_from_cm(confusion_matrix):
+    """
+        Calculate various performance metrics from a confusion matrix.
 
-    pixel_acc = tp.sum() / true.sum()
-    mean_acc = (tp / np.maximum(1.0, true)).mean()
-    IoU_array = (tp / np.maximum(1.0, pred + true - tp))
-    mean_IoU = IoU_array.mean()
+        Parameters:
+        - confusion_matrix (numpy.ndarray): The confusion matrix.
 
-    kappa = cohen_kappa_score(cm)
-    return pixel_acc, mean_acc, mean_IoU, IoU_array, dice, kappa
+        Returns:
+        - pixel_acc (float): Pixel accuracy.
+        - mean_acc (float): Mean accuracy.
+        - mean_IoU (float): Mean Intersection over Union.
+        - IoU_array (numpy.ndarray): Intersection over Union for each class.
+        - dice (float): Dice coefficient.
+        - kappa (float): Cohen's Kappa coefficient.
+        """
+
+    # Calculate pixel accuracy
+    pixel_acc = np.trace(confusion_matrix) / np.sum(confusion_matrix)
+
+    # Calculate mean accuracy
+    mean_acc = np.diag(confusion_matrix) / (np.sum(confusion_matrix, axis=1)+1e-10)
+    mean_acc = np.nanmean(mean_acc)
+
+    # Calculate IoU (Intersection over Union) for each class
+    true_positives = np.diag(confusion_matrix)
+    false_positives = np.sum(confusion_matrix, axis=0) - true_positives
+    false_negatives = np.sum(confusion_matrix, axis=1) - true_positives
+
+    IoU_array = true_positives / ((true_positives + false_positives + false_negatives)+1e-10)
+
+    # Calculate mean IoU
+    mean_IoU = np.nanmean(IoU_array)
+
+    # Calculate Dice coefficient
+    dice = (2 * true_positives) / ((2 * true_positives + false_positives + false_negatives)+1e-10)
+
+    # Calculate Cohen's Kappa coefficient
+    total_sum = np.sum(confusion_matrix)
+    observed_accuracy = np.trace(confusion_matrix) / total_sum
+    expected_accuracy = (np.sum(confusion_matrix, axis=0) / total_sum) @ (np.sum(confusion_matrix, axis=1) / total_sum)
+    kappa = (observed_accuracy - expected_accuracy) / (1 - expected_accuracy)
+
+    return pixel_acc, mean_acc, mean_IoU, IoU_array, np.nanmean(dice), np.nanmean(kappa)
 
 def cohen_kappa_score(confusion):
     r"""Cohen's kappa: a statistic that measures inter-annotator agreement.
