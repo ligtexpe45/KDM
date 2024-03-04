@@ -7,10 +7,15 @@ Created on 18/08/2020 7:41 pm
 # Standard library imports
 import os
 import time
+
+import pandas as pd
 import yaml
 import argparse
 import numpy as np
 import matplotlib
+from matplotlib import pyplot as plt
+from sklearn.metrics import ConfusionMatrixDisplay
+
 matplotlib.use('Agg')
 
 # Third party imports
@@ -167,6 +172,8 @@ def main(cfg, comet):
     #        m_params['n_heads'], comet, cfg['train_params']['save_dir'])
     test_running_time_with_wrapper(x, model, comet, m_params['n_heads'])
     comet.log_asset(cfg['train_params']['save_dir'] + '/best_model.pth')
+
+    testing(model, m_params['classes'], test_loader, metric, device, m_params['n_heads'], comet, cfg['train_params']['save_dir'])
 
 
 def train_epoch(optimizer, model, train_loader, loss_fn, metric, device, epoch, epoch_iters, max_iters):
@@ -462,6 +469,13 @@ def testing(model, classes, test_loader, metric, device, n_heads, comet, save_di
 
         # Log the confusion matrix
         comet.log_confusion_matrix(matrix=cm[i], labels=classes)
+
+        cm_pd = pd.DataFrame(cm[i], columns=classes, index=classes)
+        cm_pd.to_csv(f'{save_dir}/cm_{i}.csv')
+
+        disp = ConfusionMatrixDisplay(confusion_matrix=cm)
+        disp.plot()
+        plt.show()
 
         avg_acc = acc[i] / len(test_loader)
         print(f"Overall Accuracy clf {i}: {avg_acc:.4f}")
