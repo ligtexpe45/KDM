@@ -78,7 +78,7 @@ class FSCELoss(nn.Module):
         self.criterion = nn.CrossEntropyLoss(weight=weight,
                                              ignore_index=ignore_label)
 
-    def forward(self, inputs, *targets, weights=None, **kwargs):
+    def forward(self, inputs, *targets, weights=None, mask=None, **kwargs):
         loss = 0.0
         if isinstance(inputs, tuple) or isinstance(inputs, list):
             if weights is None:
@@ -87,15 +87,26 @@ class FSCELoss(nn.Module):
             for i in range(len(inputs)):
                 if len(targets) > 1:
                     target = self._scale_target(targets[i], (inputs[i].size(2), inputs[i].size(3)))
-                    loss += weights[i] * self.criterion(inputs[i], target)
+                    if mask:
+                        hasLabel = (target != 0).unsqueeze(1).long()
+                        loss += weights[i] * self.criterion(inputs[i] * hasLabel, target)
+                    else:
+                        loss += weights[i] * self.criterion(inputs[i], target)
                 else:
                     target = self._scale_target(targets[0], (inputs[i].size(2), inputs[i].size(3)))
-                    loss += weights[i] * self.criterion(inputs[i], target)
+                    if mask:
+                        hasLabel = (target != 0).unsqueeze(1).long()
+                        loss += weights[i] * self.criterion(inputs[i] * hasLabel, target)
+                    else:
+                        loss += weights[i] * self.criterion(inputs[i], target)
 
         else:
             target = self._scale_target(targets[0], (inputs.size(2), inputs.size(3)))
-            loss = self.criterion(inputs, target)
-
+            if mask:
+                hasLabel = (target != 0).unsqueeze(1).long()
+                loss = self.criterion(inputs * hasLabel, target)
+            else:
+                loss = self.criterion(inputs, target)
         return loss
 
     @staticmethod
@@ -315,7 +326,7 @@ class KDLoss(nn.Module):
         self.feat_w = (iters / max_iters) * self.base_feat_w
         self.resp_w = (iters / max_iters) * self.base_resp_w
 
-    def forward(self, f_results, o_results, targets, semi=False, **kwargs):
+    def forward(self, f_results, o_results, targets, semi=False, mask=None, **kwargs):
         # for f in f_results:
         #     print(f.shape)
         loss = 0
@@ -327,7 +338,7 @@ class KDLoss(nn.Module):
                 f_prev, f_next = None, None
             o_prev, o_next = o_results[r], o_results[-1]
             loss += self.forward_one_session(f_prev, f_next, o_prev, o_next, targets, semi, **kwargs)
-        loss += self.classification_loss(o_results[-1], targets)
+        loss += self.classification_loss(o_results[-1], targets, mask=mask)
         return loss
 
     def forward_one_session(self, f_prev, f_next, o_prev, o_next, targets, semi, **kwargs):

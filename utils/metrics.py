@@ -54,9 +54,13 @@ class MacroIoU(base.Metric):
         self.activation = Activation(activation)
         self.ignore_channels = ignore_channels
 
-    def forward(self, y_pr, y_gt):
+    def forward(self, y_pr, y_gt, mask=None):
         y_pr = self.activation(y_pr)
+        if mask:
+            y_pr[:, 0] = 0
         pred = torch.argmax(y_pr, dim=1)
+        if mask:
+            pred[y_gt == 0] = 0
         return sklearn.metrics.jaccard_score(y_gt.flatten().detach().cpu().numpy(),pred.flatten().detach().cpu().numpy(),
                                              average='macro')
 

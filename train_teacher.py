@@ -63,7 +63,6 @@ def debug(cfg):
                                                       max_norm_val=None,
                                                       encoder_name=m_params['encoder_name'])
 
-
     # Get dataloaders
     t_params = cfg['train_params']
     t_params['classes'] = m_params['classes']
@@ -91,9 +90,9 @@ def main(cfg, comet):
     init_seeds(cfg['seed'])
 
     # Use GPU is available, otherwise use CPU
-    #device, n_gpu_ids = prepare_device()
+    # device, n_gpu_ids = prepare_device()
     device = torch.device('cuda:0')
-    #device = 'cpu'
+    # device = 'cpu'
 
     # Create the model
     m_params = cfg['model_params']
@@ -127,7 +126,6 @@ def main(cfg, comet):
     model = torch.nn.DataParallel(model).cuda()
     model = model.to(device)
 
-
     # Define an optimiser
     print(f"Optimiser for model weights: {cfg['optimizer']['type']}")
     optimizer = init_obj(cfg['optimizer']['type'],
@@ -145,16 +143,16 @@ def main(cfg, comet):
             model.load_state_dict(checkpoint['state_dict'])
             optimizer.load_state_dict(checkpoint['optimizer'])
             print("=> loaded checkpoint (epoch {})"
-                        .format(checkpoint['epoch']))
+                  .format(checkpoint['epoch']))
 
     # Metrics
     metric = getattr(utils.metrics, cfg['metric'])(activation='softmax2d')
 
     # # Loss function
-    loss_fn = getattr(utils.losses, cfg['loss'])(base_feat_w = m_params['feat_weight'],
-                                                 base_resp_w = m_params['resp_weight'],
-                                                 student_loss_w = m_params['student_weight'],
-                                                )
+    loss_fn = getattr(utils.losses, cfg['loss'])(base_feat_w=m_params['feat_weight'],
+                                                 base_resp_w=m_params['resp_weight'],
+                                                 student_loss_w=m_params['student_weight'],
+                                                 )
 
     # Training
     training(cfg['train_params'], optimizer, model, train_loader, val_loader,
@@ -163,12 +161,11 @@ def main(cfg, comet):
     # Testing
     print("\nThe training has completed. Testing the model now...")
 
-    #Load the best model
+    # Load the best model
     saved = torch.load(cfg['train_params']['save_dir'] + '/best_model.pth')
     model.load_state_dict(saved)
 
-    
-    #testing(model, m_params['classes'], test_loader, metric, device, 
+    # testing(model, m_params['classes'], test_loader, metric, device,
     #        m_params['n_heads'], comet, cfg['train_params']['save_dir'])
     test_running_time_with_wrapper(x, model, comet, m_params['n_heads'])
     comet.log_asset(cfg['train_params']['save_dir'] + '/best_model.pth')
@@ -200,21 +197,31 @@ def train_epoch(optimizer, model, train_loader, loss_fn, metric, device, epoch, 
         optimizer.zero_grad()  # clear the old gradients
         # 1. Get a minibatch data for training
         x, y_oht, y_seg = minibatch['input'], minibatch['ground_truth_onehot'], \
-                          minibatch['ground_truth_seg']
-        x = x.to(device)            # of size (batchsize, n_bands, H, W)
-        y_seg = y_seg.to(device)    # of size (batchsize, 1, H, W)
-        #y_oht = y_oht.to(device)    # of size (batchsize, n_classes, H, W)
+            minibatch['ground_truth_seg']
+        x = x.to(device)  # of size (batchsize, n_bands, H, W)
+        y_seg = y_seg.to(device)  # of size (batchsize, 1, H, W)
+        # y_oht = y_oht.to(device)    # of size (batchsize, n_classes, H, W)
 
         # 2. Compute the forward pass
-        f_results, o_results = model(x)             # of size (batchsize, n_classes, H, W
+        f_results, o_results = model(x)  # of size (batchsize, n_classes, H, W
 
         # 3. Compute loss, then update weights
-        loss_fn.update_kd_loss_params(iters=cur_iters+step, max_iters=max_iters)
-        loss = loss_fn(f_results,o_results, y_seg)
+        loss_fn.update_kd_loss_params(iters=cur_iters + step, max_iters=max_iters)
+        if cfg['train_params']['dataset'] == "brain":
+            loss = loss_fn(f_results, o_results, y_seg, mask=True)
+        else:
+            loss = loss_fn(f_results, o_results, y_seg)
         loss.backward()  # calculate gradients
         optimizer.step()  # update weights
-        
+
+        #         if cfg['train_params']['dataset'] == "brain":
+        #             o_results[:, 0] = 0
+
         o_results = [F.interpolate(o, size=(y_seg.size(-2), y_seg.size(-1)), mode='nearest') for o in o_results]
+
+        #         if cfg['train_params']['dataset'] == "brain":
+        #             o_results[y_seg == 0] = 0
+
         # 4. Evaluate train performance
         performance = metric(o_results[-1], y_seg)
 
@@ -234,7 +241,7 @@ def train_epoch(optimizer, model, train_loader, loss_fn, metric, device, epoch, 
     return avg_loss, avg_performance
 
 
-def val_epoch(model, val_loader, loss_fn, metric, device, classes = [0, 1, 2, 3, 4]):
+def val_epoch(model, val_loader, loss_fn, metric, device, classes=[0, 1, 2, 3, 4]):
     """
     Validation an epoch of validation set
     :param model: network model
@@ -253,19 +260,31 @@ def val_epoch(model, val_loader, loss_fn, metric, device, classes = [0, 1, 2, 3,
         for step, minibatch in enumerate(pbar):
             # 1. Get a minibatch data for validation
             x, y_oht, y_seg = minibatch['input'], minibatch['ground_truth_onehot'], \
-                                 minibatch['ground_truth_seg']
-            x = x.to(device)            # of size (batchsize, n_bands, H, W)
-            y_seg = y_seg.to(device)    # of size (batchsize, 1, H, W)
-            y_oht = y_oht.to(device)    # of size (batchsize, n_classes, H, W)
+                minibatch['ground_truth_seg']
+            x = x.to(device)  # of size (batchsize, n_bands, H, W)
+            y_seg = y_seg.to(device)  # of size (batchsize, 1, H, W)
+            y_oht = y_oht.to(device)  # of size (batchsize, n_classes, H, W)
 
             # 2. Compute the forward pass
             f_results, o_results = model(x)  # of size (batchsize, n_classes, H, W)
 
+            #             if cfg['train_params']['dataset'] == "brain":
+            #                 hasLabel = (y_seg != 0).long()
+
             # 3. Compute loss, then update weights
-            #loss_fn.update_kd_loss_params(iters=cur_iters + step, max_iters=max_iters)
-            loss = loss_fn(f_results, o_results, y_seg)
+            # loss_fn.update_kd_loss_params(iters=cur_iters + step, max_iters=max_iters)
+            if cfg['train_params']['dataset'] == "brain":
+                loss = loss_fn(f_results, o_results, y_seg, mask=True)
+            else:
+                loss = loss_fn(f_results, o_results, y_seg)
+
+            #             if cfg['train_params']['dataset'] == "brain":
+            #                 o_results[:, 0] = 0
 
             o_results = [F.interpolate(o, size=(y_seg.size(-2), y_seg.size(-1)), mode='nearest') for o in o_results]
+
+            #             if cfg['train_params']['dataset'] == "brain":
+            #                 o_results[y_seg == 0] = 0
 
             # 4. Evaluate test performance
             performance = metric(o_results[-1], y_seg)
@@ -275,7 +294,7 @@ def val_epoch(model, val_loader, loss_fn, metric, device, classes = [0, 1, 2, 3,
             running_performance = running_performance + performance.item()
 
             cm = cm + compute_confusion_matrix(y_gt=y_seg.detach().cpu().numpy(),
-                                                y_pr=o_results[-1].detach().cpu().numpy(),
+                                               y_pr=o_results[-1].detach().cpu().numpy(),
                                                classes=classes)
 
             # 6. Display losses
@@ -284,7 +303,7 @@ def val_epoch(model, val_loader, loss_fn, metric, device, classes = [0, 1, 2, 3,
 
         # Compute the average loss and performance
         avg_loss = running_loss / len(val_loader)
-        #avg_performance = running_performance / len(val_loader)
+        # avg_performance = running_performance / len(val_loader)
         pixel_acc, mean_acc, mean_IoU, IoU_array, dice, kappa = compute_eval_from_cm(cm)
 
         # Return the loss and performance (average-over-epoch values) of the evaluation set
@@ -308,14 +327,13 @@ def training(train_cfg, optimizer, model, train_loader, val_loader, loss_fn,
     """
     # Number of iterations
     epoch_iters = int(train_loader.dataset.__len__() /
-                         cfg['train_params']['batch_size'] / len(cfg['gpu_id']))
+                      cfg['train_params']['batch_size'] / len(cfg['gpu_id']))
     max_iters = epoch_iters * cfg['train_params']['n_epochs']
 
-
     n_epochs = train_cfg['n_epochs']
-    #best_model_indicator = 10000000
+    # best_model_indicator = 10000000
     not_improved_epochs = 0
-    #scheduler = StepLR(optimizer, step_size=25, gamma=0.8)
+    # scheduler = StepLR(optimizer, step_size=25, gamma=0.8)
     for epoch in range(last_epoch, n_epochs):
         print(f"\nTraining epoch {epoch + 1}/{n_epochs}")
         print("-----------------------------------")
@@ -323,17 +341,20 @@ def training(train_cfg, optimizer, model, train_loader, val_loader, loss_fn,
         with comet.train():
             train_loss, train_performance = train_epoch(optimizer, model,
                                                         train_loader, loss_fn,
-                                                        metric, device, epoch=epoch, epoch_iters=epoch_iters, max_iters=max_iters)
+                                                        metric, device, epoch=epoch, epoch_iters=epoch_iters,
+                                                        max_iters=max_iters)
             comet.log_metric('loss', train_loss, epoch=epoch + 1)
             comet.log_metric('performance', train_performance, epoch=epoch + 1)
 
         # Validate a epoch
         with comet.validate():
             val_loss, val_performance, pixel_acc, mean_acc, _, dice, kappa, cm = val_epoch(model, val_loader, loss_fn,
-                                                  metric, device, cfg['model_params']['classes'])
+                                                                                           metric, device,
+                                                                                           cfg['model_params'][
+                                                                                               'classes'])
             comet.log_metric('loss', val_loss, epoch=epoch + 1)
             comet.log_metric('performance', val_performance, epoch=epoch + 1)
-        #scheduler.step(epoch)
+        # scheduler.step(epoch)
         print(f"\nSummary of epoch {epoch + 1}:")
         print(f"Train loss: {train_loss:.4f}, "
               f"Train performance: {train_performance:.4f}")
@@ -356,13 +377,12 @@ def training(train_cfg, optimizer, model, train_loader, val_loader, loss_fn,
         cm = pd.DataFrame(cm, index=cfg['model_params']['classes'], columns=cfg['model_params']['classes'])
         cm.to_csv(f'{train_cfg["save_dir"]}/cm.csv')
 
-
         # Save best model only
-        #if val_loss < best_model_indicator:
+        # if val_loss < best_model_indicator:
         if val_performance >= best_performance:
             print(f'Model exceeds prev best score'
                   f'({val_performance:.4f} > {best_performance:.4f}). Saving it now.')
-            #best_model_indicator = val_loss
+            # best_model_indicator = val_loss
             best_performance = val_performance
 
             # Write the model
@@ -383,7 +403,7 @@ def training(train_cfg, optimizer, model, train_loader, val_loader, loss_fn,
     # Create a heatmap and display numerical values inside the cells
     plt.imshow(best_cm, cmap='viridis', interpolation='nearest')
 
-    if cfg['train_params']['add_cm_labels']!=0:
+    if cfg['train_params']['add_cm_labels'] != 0:
         for i in range(best_cm.shape[0]):
             for j in range(best_cm.shape[1]):
                 plt.text(j, i, str(best_cm[i, j]), ha='center', va='center', color='black')
@@ -410,7 +430,7 @@ def testing(model, classes, test_loader, metric, device, n_heads, comet, save_di
     :return:
     """
     vis_path = f'{save_dir}/visual'
-    os.makedirs(vis_path,exist_ok=True)
+    os.makedirs(vis_path, exist_ok=True)
     model.eval()  # set model to eval mode
     pbar = tqdm(test_loader, ncols=80, desc='Testing')
     running_performance = [0] * n_heads
@@ -420,15 +440,15 @@ def testing(model, classes, test_loader, metric, device, n_heads, comet, save_di
     kappas = [0] * n_heads
     aa = [0] * n_heads
     count_kappa = [0] * n_heads
-    #dice_coeff = utils.metrics.Dice()
+    # dice_coeff = utils.metrics.Dice()
     with torch.no_grad():  # declare no gradient operations, and namespacing in comet
         for step, minibatch in enumerate(pbar):
             # 1. Get a minibatch data for testing
             x, y_oht, y_seg, name = minibatch['input'], minibatch['ground_truth_onehot'], \
-                                 minibatch['ground_truth_seg'], minibatch['name'][0]
-            x = x.to(device)            # of size (batchsize, n_bands, H, W)
-            y_seg = y_seg.to(device)    # of size (batchsize, 1, H, W)
-            y_oht = y_oht.to(device)    # of size (batchsize, n_classes, H, W)
+                minibatch['ground_truth_seg'], minibatch['name'][0]
+            x = x.to(device)  # of size (batchsize, n_bands, H, W)
+            y_seg = y_seg.to(device)  # of size (batchsize, 1, H, W)
+            y_oht = y_oht.to(device)  # of size (batchsize, n_classes, H, W)
 
             # 2. Compute the forward pass
             f_results, o_results = model(x)  # of size (batchsize, n_classes, H, W)
@@ -442,12 +462,12 @@ def testing(model, classes, test_loader, metric, device, n_heads, comet, save_di
 
                 # # 5. Show visual results
                 test_loader.dataset.save_pred(y_oht, sv_path=f'{vis_path}', name=f'{name}_gt.png')
-                test_loader.dataset.save_pred(o_results[i],sv_path=f'{vis_path}',name=f'{name}_clf{i}.png')
+                test_loader.dataset.save_pred(o_results[i], sv_path=f'{vis_path}', name=f'{name}_clf{i}.png')
 
                 # 6. Compute the confusion matrix
                 cm[i] = cm[i] + compute_confusion_matrix(y_seg.detach().cpu().numpy(),
-                                                   o_results[i].detach().cpu().numpy(),
-                                                   classes=classes)
+                                                         o_results[i].detach().cpu().numpy(),
+                                                         classes=classes)
 
                 # 7. Test dice
                 dices[i] += utils.metrics.dice_coeff(o_results[i], y_seg)
@@ -459,12 +479,12 @@ def testing(model, classes, test_loader, metric, device, n_heads, comet, save_di
                 aa[i] += utils.metrics.average_accuracy(o_results[i], y_seg)
 
                 # 10. Compute Kappa
-                #k = utils.metrics.kappa(y_pr, y_seg)
+                # k = utils.metrics.kappa(y_pr, y_seg)
                 k = utils.metrics.kappa(o_results[i], y_seg)
                 if not np.isnan(k):
                     kappas[i] += k
                     count_kappa[i] += 1
-            #kappa += utils.metrics.kappa(y_pr, y_seg)
+            # kappa += utils.metrics.kappa(y_pr, y_seg)
 
     for i in range(n_heads):
         pixel_acc, mean_acc, mean_IoU, IoU_array, dice, kappa = compute_eval_from_cm(cm[i])
@@ -492,7 +512,6 @@ def testing(model, classes, test_loader, metric, device, n_heads, comet, save_di
         print(f"IoU Array {i}", IoU_array)
         comet.log_metric(f"test_iou_array_{i}", IoU_array)
 
-
         # Log the confusion matrix
         comet.log_confusion_matrix(matrix=cm[i], labels=classes)
 
@@ -514,6 +533,7 @@ def testing(model, classes, test_loader, metric, device, n_heads, comet, save_di
         avg_kappa = kappas[i] / count_kappa[i]
         print(f"Average Kappa Clf {i}: {avg_kappa:.4f}")
         comet.log_metric(f"test_kappa_{i}", kappa)
+
 
 def init_seeds(seed):
     """
@@ -592,4 +612,4 @@ if __name__ == '__main__':
     comet.add_tags(cfg['tags'])
     #
     main(cfg, comet)
-    #debug(cfg)
+    # debug(cfg)
