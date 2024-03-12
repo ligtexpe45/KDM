@@ -81,8 +81,12 @@ class MacroIoU(base.Metric):
 #                      threshold=self.threshold,
 #                      ignore_channels=self.ignore_channels)
 
-def iou(pred,target):
-    pred = torch.argmax(pred,dim=0)
+def iou(pred,target, mask):
+    if mask:
+        pred[:, 0] = 0
+    pred = torch.argmax(pred, dim=1)
+    if mask:
+        pred[target == 0] = 0
     return sklearn.metrics.jaccard_score(pred.flatten().detach().cpu().numpy(),
                                   target.flatten().detach().cpu().numpy(),
                                   average='macro')
@@ -181,9 +185,13 @@ class Dice(base.Metric):
         self.activation = Activation(activation)
         self.ignore_channels = ignore_channels
 
-    def forward(self, y_pr, y_gt):
+    def forward(self, y_pr, y_gt, mask):
         y_pr = self.activation(y_pr)
+        if mask:
+            y_pr[:, 0] = 0
         y_pr = torch.argmax(y_pr, dim=1)
+        if mask:
+            y_pr[y_gt == 0] = 0
         return F.dice(y_pr, y_gt)
 
 # def dice_coeff(pred, target):
@@ -195,29 +203,45 @@ class Dice(base.Metric):
 #
 #     return (2. * intersection + smooth) / (m1.sum() + m2.sum() + smooth)
 
-def accuracy(pred,target):
+def accuracy(pred,target, mask):
+    if mask:
+        pred[:, 0] = 0
     pred = torch.argmax(pred, dim=1)
+    if mask:
+        pred[target == 0] = 0
     acc = sklearn.metrics.accuracy_score(target.flatten().detach().cpu().numpy(),
                                          pred.flatten().detach().cpu().numpy())
     return acc
 
-def average_accuracy(pred,target):
+def average_accuracy(pred,target, mask):
+    if mask:
+        pred[:, 0] = 0
     pred = torch.argmax(pred, dim=1)
+    if mask:
+        pred[target == 0] = 0
     aa = sklearn.metrics.recall_score(target.flatten().detach().cpu().numpy(),
                                          pred.flatten().detach().cpu().numpy(),
                                       average='macro')
     return aa
 
-def kappa(pred,target):
+def kappa(pred,target, mask):
+    if mask:
+        pred[:, 0] = 0
     pred = torch.argmax(pred, dim=1)
+    if mask:
+        pred[target == 0] = 0
     kappa = sklearn.metrics.cohen_kappa_score(target.flatten().detach().cpu().numpy(),
                                          pred.flatten().detach().cpu().numpy(),labels=[0,1,2,3,4])
     return kappa
 
 
 
-def dice_coeff(pred,target):
+def dice_coeff(pred,target, mask):
+    if mask:
+        pred[:, 0] = 0
     pred = torch.argmax(pred, dim=1)
+    if mask:
+        pred[target == 0] = 0
     dice = sklearn.metrics.f1_score(target.flatten().detach().cpu().numpy(),
                                     pred.flatten().detach().cpu().numpy(),
                                         average='macro')
