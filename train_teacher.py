@@ -470,17 +470,17 @@ def testing(model, classes, test_loader, metric, device, n_heads, comet, save_di
                                                          classes=classes)
 
                 # 7. Test dice
-                dices[i] += utils.metrics.dice_coeff(o_results[i], y_seg)
+                dices[i] += utils.metrics.dice_coeff(o_results[i], y_seg, cfg['train_params']['dataset']=="brain")
 
                 # 8. Compute Accuracy
-                acc[i] += utils.metrics.accuracy(o_results[i], y_seg)
+                acc[i] += utils.metrics.accuracy(o_results[i], y_seg, cfg['train_params']['dataset']=="brain")
 
                 # 9. Compute Avg Accuracy
-                aa[i] += utils.metrics.average_accuracy(o_results[i], y_seg)
+                aa[i] += utils.metrics.average_accuracy(o_results[i], y_seg, cfg['train_params']['dataset']=="brain")
 
                 # 10. Compute Kappa
                 # k = utils.metrics.kappa(y_pr, y_seg)
-                k = utils.metrics.kappa(o_results[i], y_seg)
+                k = utils.metrics.kappa(o_results[i], y_seg, cfg['train_params']['dataset']=="brain")
                 if not np.isnan(k):
                     kappas[i] += k
                     count_kappa[i] += 1
