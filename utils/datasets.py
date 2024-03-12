@@ -88,6 +88,9 @@ class HSIDataset(Dataset):
         # Read the hsi image
         if self.dataset == 'brain':
             x = envi.open(raw_file, image=raw_file[:-4])[:, :, :]
+            chosen_channels = np.linspace(0, x.shape[2] - 1, num=300, dtype=int)
+            new_x = [x[:, :, channel] for channel in chosen_channels]
+            x = np.stack(new_x, axis=2)
         elif self.dataset == 'pathology':
             x = envi.open(raw_file, image=raw_file[:-4]+'.img')[:, :, :]
         elif self.dataset == 'dental':
