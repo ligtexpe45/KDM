@@ -373,14 +373,18 @@ def init_obj(module_name, module_args, module, *args, **kwargs):
     return getattr(module, module_name)(*args, **module_args)
 
 
-def convert_prob2seg(y_prob, classes):
+def convert_prob2seg(y_prob, classes, y_gt=None, mask=None):
     """
     Convert the class-probability image into the segmentation image
     :param y_prob: class-probability image with a size of n_classes x H x W
     :param classes: list of classes in image y
     :return: 2D array, a segmentation image with a size of H x W
     """
+    if mask:
+        y_prob[0] = 0
     y_class = np.argmax(y_prob, axis=0)
+    if mask:
+        y_class[y_gt == 0] = 0
     y_seg = np.zeros((y_prob.shape[1], y_prob.shape[2]))
 
     for k, class_label in enumerate(classes):
@@ -402,7 +406,7 @@ def compute_confusion_matrix(y_gt, y_pr, classes=[0, 1, 2, 3, 4]):
     cm = 0
     for k in range(y_gt.shape[0]):
         # Convert the current y_pr in to the segmentation
-        y_prk = convert_prob2seg(np.squeeze(y_pr[k, ...]), classes).flatten()
+        y_prk = convert_prob2seg(np.squeeze(y_pr[k, ...]), classes, y_gt=y_gt).flatten()
 
         # Get the kth ground-truth segmentaion
         y_gtk = np.squeeze(y_gt[k, ...]).flatten()
